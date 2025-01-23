@@ -1,7 +1,6 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader},
-    sync::LazyLock,
+    io::{BufRead, BufReader}, vec,
 };
 
 use anyhow::Result;
@@ -10,13 +9,13 @@ fn euclidean_distance(a: &(f64, f64), b: &(f64, f64)) -> u64 {
     ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt() as u64
 }
 
-pub static DISTANCE_MATRIX: LazyLock<Vec<Vec<u64>>> = LazyLock::new(|| Vec::new());
-
+#[derive(Clone)]
 pub struct TspLib {
     pub name: String,
     pub comment: String,
     pub dimension: usize,
     pub node_coords: Vec<(f64, f64)>,
+    pub distance_matrix: Vec<Vec<u64>>,
 }
 
 impl TspLib {
@@ -26,6 +25,7 @@ impl TspLib {
             comment: String::new(),
             dimension: 0,
             node_coords: Vec::new(),
+            distance_matrix: Vec::new(),
         }
     }
 }
@@ -37,16 +37,26 @@ pub fn read_tsp_file(filename: &str) -> Result<TspLib> {
 
     let mut lines = reader.lines();
     let mut line = lines.next().unwrap()?;
-    while !line.contains("NODE_COORD_SECTION") {
-        if line.contains("NAME") {
-            tsp.name = line.split(":").collect::<Vec<&str>>()[1].trim().to_string();
-        } else if line.contains("COMMENT") {
-            tsp.comment = line.split(":").collect::<Vec<&str>>()[1].trim().to_string();
-        } else if line.contains("DIMENSION") {
-            tsp.dimension = line.split(":").collect::<Vec<&str>>()[1].trim().parse()?;
-        }
-        line = lines.next().unwrap()?;
-    }
+
+    assert!(line.contains("NAME"));
+    tsp.name = line.split(":").collect::<Vec<&str>>()[1].trim().to_string();
+    line = lines.next().unwrap()?;
+
+    assert!(line.contains("COMMENT"));
+    tsp.comment = line.split(":").collect::<Vec<&str>>()[1].trim().to_string();
+    line = lines.next().unwrap()?;
+
+    assert!(line.contains("TYPE"));
+    line = lines.next().unwrap()?;
+
+    assert!(line.contains("DIMENSION"));
+    tsp.dimension = line.split(":").collect::<Vec<&str>>()[1].trim().parse()?;
+    line = lines.next().unwrap()?;
+
+    assert!(line.contains("EDGE_WEIGHT_TYPE"));
+    line = lines.next().unwrap()?;
+    
+    assert!(line.contains("NODE_COORD_SECTION"));
 
     for _ in 0..tsp.dimension {
         line = lines.next().unwrap()?;
@@ -54,6 +64,15 @@ pub fn read_tsp_file(filename: &str) -> Result<TspLib> {
         let x = coords[1].parse()?;
         let y = coords[2].parse()?;
         tsp.node_coords.push((x, y));
+    }
+
+    tsp.distance_matrix = vec![vec![0; tsp.dimension]; tsp.dimension];
+    for i in 0..tsp.dimension-1 {
+        for j in i+1..tsp.dimension {
+            let dist = euclidean_distance(&tsp.node_coords[i], &tsp.node_coords[j]);
+            tsp.distance_matrix[i][j] = dist;
+            tsp.distance_matrix[j][i] = dist;
+        }
     }
 
     Ok(tsp)

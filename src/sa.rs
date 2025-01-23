@@ -92,9 +92,7 @@ impl SimulatedAnnealing {
     }
 }
 
-pub fn solve_tsp(filename: &str) -> Result<Route> {
-    let tsp = read_tsp_file(filename)?;
-
+pub fn solve_tsp(tsp: TspLib) -> Result<Route> {
     let mut sa = SimulatedAnnealing::new(100.0, 0.001, 0.01);
 
     Ok(sa.solve(&tsp))

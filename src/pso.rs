@@ -1,10 +1,8 @@
-use crate::tsplib::DISTANCE_MATRIX;
 use anyhow::Result;
 use rand::{thread_rng, Rng};
 use std::time::Instant;
 
-#[derive(Clone)]
-pub struct Particle {
+struct Particle {
     position: Vec<usize>,
     velocity: Vec<(usize, usize)>,
     best_position: Vec<usize>,
@@ -12,8 +10,8 @@ pub struct Particle {
 }
 
 impl Particle {
-    fn new() -> Self {
-        let position = (0..DISTANCE_MATRIX.len()).collect::<Vec<usize>>();
+    fn new(num_cities: usize) -> Self {
+        let position = (0..num_cities).collect::<Vec<usize>>();
         Particle {
             position: position.clone(),
             velocity: Vec::new(),
@@ -23,7 +21,7 @@ impl Particle {
     }
 
     /// Initialize particle position using nearest neighbor heuristic
-    fn initialize_nearest_neighbor(&mut self) {
+    fn initialize_nearest_neighbor(&mut self, distance_matrix: &[Vec<u64>]) {
         let mut rng = thread_rng();
         let mut current_city = rng.gen_range(0..self.position.len());
         let mut unvisited = (0..self.position.len())
@@ -35,8 +33,8 @@ impl Particle {
             let next_city = unvisited
                 .iter()
                 .min_by(|&&a, &&b| {
-                    let dist_a = DISTANCE_MATRIX[current_city][a];
-                    let dist_b = DISTANCE_MATRIX[current_city][b];
+                    let dist_a = distance_matrix[current_city][a];
+                    let dist_b = distance_matrix[current_city][b];
                     dist_a.partial_cmp(&dist_b).unwrap()
                 })
                 .unwrap();
@@ -82,7 +80,7 @@ impl Particle {
     }
 
     /// Apply mutation (swap two random cities)
-    fn mutate(&self, route: &mut Vec<usize>, mutation_rate: f64) {
+    fn mutate(&self, route: &mut [usize], mutation_rate: f64) {
         let mut rng = thread_rng();
         if rng.gen::<f64>() < mutation_rate {
             let i = rng.gen_range(0..route.len());
@@ -143,12 +141,12 @@ impl Particle {
 }
 
 /// Calculate total distance of the route
-fn calculate_fitness(route: &[usize]) -> u64 {
+fn calculate_fitness(route: &[usize], distance_matrix: &[Vec<u64>]) -> u64 {
     let mut total_distance = 0;
     for i in 0..route.len() {
         let from_city = route[i];
         let to_city = route[(i + 1) % route.len()];
-        total_distance += DISTANCE_MATRIX[from_city][to_city];
+        total_distance += distance_matrix[from_city][to_city];
     }
 
     total_distance
@@ -163,10 +161,14 @@ fn two_opt_swap(route: &[usize], i: usize, j: usize) -> Vec<usize> {
 }
 
 /// Apply randomized 2-opt local search to improve route
-fn local_search(route: &[usize], max_iterations: usize) -> Vec<usize> {
+fn local_search(
+    route: &[usize],
+    distance_matrix: &[Vec<u64>],
+    max_iterations: usize,
+) -> Vec<usize> {
     let mut rng = thread_rng();
     let mut best_route = route.to_vec();
-    let mut best_distance = calculate_fitness(&best_route);
+    let mut best_distance = calculate_fitness(&best_route, distance_matrix);
     let n = route.len();
 
     for _ in 0..max_iterations {
@@ -175,7 +177,7 @@ fn local_search(route: &[usize], max_iterations: usize) -> Vec<usize> {
         let j = rng.gen_range(i + 1..n - 1);
 
         let new_route = two_opt_swap(&best_route, i, j);
-        let new_distance = calculate_fitness(&new_route);
+        let new_distance = calculate_fitness(&new_route, distance_matrix);
 
         if new_distance < best_distance {
             best_route = new_route;
@@ -186,11 +188,10 @@ fn local_search(route: &[usize], max_iterations: usize) -> Vec<usize> {
     best_route
 }
 
-pub struct PSO {
+struct PSO {
     particles: Vec<Particle>,
     global_best_position: Vec<usize>,
     global_best_fitness: u64,
-    num_particles: usize,
     max_iterations: usize,
     cognitive_weight: f64,
     social_weight: f64,
@@ -199,7 +200,8 @@ pub struct PSO {
 }
 
 impl PSO {
-    pub fn new(
+    fn new(
+        distance_matrix: &[Vec<u64>],
         num_particles: usize,
         max_iterations: usize,
         cognitive_weight: f64,
@@ -208,12 +210,13 @@ impl PSO {
         local_search_freq: usize,
     ) -> Self {
         let mut particles = Vec::with_capacity(num_particles);
-        let global_best_position = (0..DISTANCE_MATRIX.len()).collect();
+        let num_cities = distance_matrix.len();
+        let global_best_position = (0..num_cities).collect();
 
         // Initialize particles
         for _ in 0..num_particles {
-            let mut particle = Particle::new();
-            particle.initialize_nearest_neighbor();
+            let mut particle = Particle::new(num_cities);
+            particle.initialize_nearest_neighbor(distance_matrix);
             particles.push(particle);
         }
 
@@ -221,7 +224,6 @@ impl PSO {
             particles,
             global_best_position,
             global_best_fitness: u64::MAX,
-            num_particles,
             max_iterations,
             cognitive_weight,
             social_weight,
@@ -231,14 +233,15 @@ impl PSO {
     }
 
     /// Run the PSO algorithm
-    pub fn optimize(&mut self) -> Result<(Vec<usize>, u64)> {
+    fn optimize(&mut self, distance_matrix: &[Vec<u64>]) -> Result<(Vec<usize>, u64, Vec<u64>)> {
         let start_time = Instant::now();
+        let mut history = Vec::with_capacity(self.max_iterations);
         let mut iterations_without_improvement = 0;
         let mut current_best_fitness = self.global_best_fitness;
 
         // Initial evaluation
         for particle in &mut self.particles {
-            let fitness = calculate_fitness(&particle.position);
+            let fitness = calculate_fitness(&particle.position, distance_matrix);
             particle.update_personal_best(fitness);
             if fitness < self.global_best_fitness {
                 self.global_best_fitness = fitness;
@@ -260,11 +263,11 @@ impl PSO {
 
                 // Apply local search periodically
                 if iteration % self.local_search_freq == 0 {
-                    particle.position = local_search(&particle.position, 20);
+                    particle.position = local_search(&particle.position, distance_matrix, 20);
                 }
 
                 // Evaluate new position
-                let fitness = calculate_fitness(&particle.position);
+                let fitness = calculate_fitness(&particle.position, distance_matrix);
 
                 // Update personal best
                 particle.update_personal_best(fitness);
@@ -284,6 +287,9 @@ impl PSO {
                 iterations_without_improvement += 1;
             }
 
+            // Store history
+            history.push(self.global_best_fitness);
+
             // Early stopping
             if iterations_without_improvement > 50 {
                 println!("Early stopping at iteration {}", iteration);
@@ -300,14 +306,24 @@ impl PSO {
         }
 
         // Final local search on global best
-        self.global_best_position = local_search(&self.global_best_position, 100);
-        self.global_best_fitness = calculate_fitness(&self.global_best_position);
+        self.global_best_position = local_search(&self.global_best_position, distance_matrix, 100);
+        self.global_best_fitness = calculate_fitness(&self.global_best_position, distance_matrix);
 
         println!(
             "Total time elapsed: {:.2}s",
             start_time.elapsed().as_secs_f64()
         );
 
-        Ok((self.global_best_position.clone(), self.global_best_fitness))
+        Ok((
+            self.global_best_position.clone(),
+            self.global_best_fitness,
+            history,
+        ))
     }
+}
+
+pub fn solve_tsp(distance_matrix: &[Vec<u64>]) -> Result<(Vec<usize>, u64, Vec<u64>)> {
+    let mut pso = PSO::new(distance_matrix, 200, 1000, 1.5, 1.5, 0.8, 10);
+
+    Ok(pso.optimize(distance_matrix).unwrap())
 }
