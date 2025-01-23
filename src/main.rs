@@ -1,3 +1,4 @@
+mod pso;
 mod sa;
 mod tsplib;
 
