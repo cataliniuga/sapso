@@ -1,4 +1,4 @@
-use crate::tsplib::TspLib;
+use crate::tsplib::DISTANCE_MATRIX;
 use anyhow::Result;
 use rand::{thread_rng, Rng};
 use std::time::Instant;
@@ -8,22 +8,22 @@ pub struct Particle {
     position: Vec<usize>,
     velocity: Vec<(usize, usize)>,
     best_position: Vec<usize>,
-    best_fitness: f64,
+    best_fitness: u64,
 }
 
 impl Particle {
-    fn new(num_cities: usize) -> Self {
-        let position = (0..num_cities).collect::<Vec<usize>>();
+    fn new() -> Self {
+        let position = (0..DISTANCE_MATRIX.len()).collect::<Vec<usize>>();
         Particle {
             position: position.clone(),
             velocity: Vec::new(),
             best_position: position,
-            best_fitness: f64::INFINITY,
+            best_fitness: u64::MAX,
         }
     }
 
     /// Initialize particle position using nearest neighbor heuristic
-    fn initialize_nearest_neighbor(&mut self, distances: &[(f64, f64)]) {
+    fn initialize_nearest_neighbor(&mut self) {
         let mut rng = thread_rng();
         let mut current_city = rng.gen_range(0..self.position.len());
         let mut unvisited = (0..self.position.len())
@@ -35,8 +35,8 @@ impl Particle {
             let next_city = unvisited
                 .iter()
                 .min_by(|&&a, &&b| {
-                    let dist_a = euclidean_distance(&distances[current_city], &distances[a]);
-                    let dist_b = euclidean_distance(&distances[current_city], &distances[b]);
+                    let dist_a = DISTANCE_MATRIX[current_city][a];
+                    let dist_b = DISTANCE_MATRIX[current_city][b];
                     dist_a.partial_cmp(&dist_b).unwrap()
                 })
                 .unwrap();
@@ -48,106 +48,11 @@ impl Particle {
         self.position = route;
     }
 
-    fn update_personal_best(&mut self, fitness: f64) {
+    fn update_personal_best(&mut self, fitness: u64) {
         if fitness < self.best_fitness {
             self.best_fitness = fitness;
             self.best_position = self.position.clone();
         }
-    }
-}
-
-pub struct PSO {
-    particles: Vec<Particle>,
-    global_best_position: Vec<usize>,
-    global_best_fitness: f64,
-    num_particles: usize,
-    max_iterations: usize,
-    cognitive_weight: f64,
-    social_weight: f64,
-    inertia_weight: f64,
-    local_search_freq: usize,
-    node_coords: Vec<(f64, f64)>,
-}
-
-impl PSO {
-    pub fn new(
-        tsp: &TspLib,
-        num_particles: usize,
-        max_iterations: usize,
-        cognitive_weight: f64,
-        social_weight: f64,
-        inertia_weight: f64,
-        local_search_freq: usize,
-    ) -> Self {
-        let num_cities = tsp.dimension;
-        let mut particles = Vec::with_capacity(num_particles);
-        let mut global_best_fitness = f64::INFINITY;
-        let global_best_position = (0..num_cities).collect();
-
-        // Initialize particles
-        for _ in 0..num_particles {
-            let mut particle = Particle::new(num_cities);
-            particle.initialize_nearest_neighbor(&tsp.node_coords);
-            particles.push(particle);
-        }
-
-        PSO {
-            particles,
-            global_best_position,
-            global_best_fitness,
-            num_particles,
-            max_iterations,
-            cognitive_weight,
-            social_weight,
-            inertia_weight,
-            local_search_freq,
-            node_coords: tsp.node_coords.clone(),
-        }
-    }
-
-    /// Calculate total distance of the route
-    fn calculate_fitness(&self, route: &[usize]) -> f64 {
-        let mut total_distance = 0.0;
-        for i in 0..route.len() {
-            let from_city = route[i];
-            let to_city = route[(i + 1) % route.len()];
-            total_distance +=
-                euclidean_distance(&self.node_coords[from_city], &self.node_coords[to_city]);
-        }
-
-        total_distance
-    }
-
-    /// Perform 2-opt swap operation
-    fn two_opt_swap(&self, route: &[usize], i: usize, j: usize) -> Vec<usize> {
-        let mut new_route = route[..i].to_vec();
-        new_route.extend(route[i..=j].iter().rev());
-        new_route.extend(&route[j + 1..]);
-        new_route
-    }
-
-    /// Apply randomized 2-opt local search to improve route
-    fn local_search(&self, route: &[usize], max_iterations: usize) -> Vec<usize> {
-        let mut rng = thread_rng();
-        let mut best_route = route.to_vec();
-        let mut best_distance = self.calculate_fitness(&best_route);
-        let n = route.len();
-
-        for _ in 0..max_iterations {
-            // Randomly sample positions to swap
-            let i = rng.gen_range(1..n - 2);
-            let j = rng.gen_range(i + 1..n - 1);
-
-            let new_route = self.two_opt_swap(&best_route, i, j);
-            let new_distance = self.calculate_fitness(&new_route);
-
-            if new_distance < best_distance {
-                best_route = new_route;
-                best_distance = new_distance;
-            }
-        }
-
-        best_route
     }
 
     /// Order crossover (OX) operator
@@ -187,29 +92,34 @@ impl PSO {
     }
 
     /// Update particle's velocity using both PSO and genetic operators
-    fn update_velocity(&self, particle: &Particle) -> Vec<(usize, usize)> {
+    fn update_velocity(
+        &mut self,
+        cognitive_weight: f64,
+        social_weight: f64,
+        global_best_position: &[usize],
+    ) {
         let mut rng = thread_rng();
-        let mut new_route = particle.position.clone();
+        let mut new_route = self.position.clone();
 
         // PSO movement
-        if rng.gen::<f64>() < self.cognitive_weight {
-            new_route = self.crossover(&new_route, &particle.best_position);
+        if rng.gen::<f64>() < cognitive_weight {
+            new_route = self.crossover(&new_route, &self.best_position);
         }
 
-        if rng.gen::<f64>() < self.social_weight {
-            new_route = self.crossover(&new_route, &self.global_best_position);
+        if rng.gen::<f64>() < social_weight {
+            new_route = self.crossover(&new_route, global_best_position);
         }
 
         // Mutation
         self.mutate(&mut new_route, 0.1);
 
         // Convert differences into swap sequence
-        self.get_swap_sequence(&particle.position, &new_route)
+        self.velocity = self.get_swap_sequence(&new_route)
     }
 
     /// Generate sequence of swaps to transform from_route into to_route
-    fn get_swap_sequence(&self, from_route: &[usize], to_route: &[usize]) -> Vec<(usize, usize)> {
-        let mut from_route = from_route.to_vec();
+    fn get_swap_sequence(&self, to_route: &[usize]) -> Vec<(usize, usize)> {
+        let mut from_route = self.position.to_vec();
         let mut swaps = Vec::new();
 
         for i in 0..from_route.len() {
@@ -225,23 +135,110 @@ impl PSO {
     }
 
     /// Apply sequence of swaps to the route
-    fn apply_velocity(&self, route: &[usize], velocity: &[(usize, usize)]) -> Vec<usize> {
-        let mut new_route = route.to_vec();
-        for &(i, j) in velocity {
-            new_route.swap(i, j);
+    fn apply_velocity(&mut self) {
+        for &(i, j) in self.velocity.iter() {
+            self.position.swap(i, j);
         }
-        new_route
+    }
+}
+
+/// Calculate total distance of the route
+fn calculate_fitness(route: &[usize]) -> u64 {
+    let mut total_distance = 0;
+    for i in 0..route.len() {
+        let from_city = route[i];
+        let to_city = route[(i + 1) % route.len()];
+        total_distance += DISTANCE_MATRIX[from_city][to_city];
+    }
+
+    total_distance
+}
+
+/// Perform 2-opt swap operation
+fn two_opt_swap(route: &[usize], i: usize, j: usize) -> Vec<usize> {
+    let mut new_route = route[..i].to_vec();
+    new_route.extend(route[i..=j].iter().rev());
+    new_route.extend(&route[j + 1..]);
+    new_route
+}
+
+/// Apply randomized 2-opt local search to improve route
+fn local_search(route: &[usize], max_iterations: usize) -> Vec<usize> {
+    let mut rng = thread_rng();
+    let mut best_route = route.to_vec();
+    let mut best_distance = calculate_fitness(&best_route);
+    let n = route.len();
+
+    for _ in 0..max_iterations {
+        // Randomly sample positions to swap
+        let i = rng.gen_range(1..n - 2);
+        let j = rng.gen_range(i + 1..n - 1);
+
+        let new_route = two_opt_swap(&best_route, i, j);
+        let new_distance = calculate_fitness(&new_route);
+
+        if new_distance < best_distance {
+            best_route = new_route;
+            best_distance = new_distance;
+        }
+    }
+
+    best_route
+}
+
+pub struct PSO {
+    particles: Vec<Particle>,
+    global_best_position: Vec<usize>,
+    global_best_fitness: u64,
+    num_particles: usize,
+    max_iterations: usize,
+    cognitive_weight: f64,
+    social_weight: f64,
+    inertia_weight: f64,
+    local_search_freq: usize,
+}
+
+impl PSO {
+    pub fn new(
+        num_particles: usize,
+        max_iterations: usize,
+        cognitive_weight: f64,
+        social_weight: f64,
+        inertia_weight: f64,
+        local_search_freq: usize,
+    ) -> Self {
+        let mut particles = Vec::with_capacity(num_particles);
+        let global_best_position = (0..DISTANCE_MATRIX.len()).collect();
+
+        // Initialize particles
+        for _ in 0..num_particles {
+            let mut particle = Particle::new();
+            particle.initialize_nearest_neighbor();
+            particles.push(particle);
+        }
+
+        PSO {
+            particles,
+            global_best_position,
+            global_best_fitness: u64::MAX,
+            num_particles,
+            max_iterations,
+            cognitive_weight,
+            social_weight,
+            inertia_weight,
+            local_search_freq,
+        }
     }
 
     /// Run the PSO algorithm
-    pub fn optimize(&mut self) -> Result<(Vec<usize>, f64)> {
+    pub fn optimize(&mut self) -> Result<(Vec<usize>, u64)> {
         let start_time = Instant::now();
         let mut iterations_without_improvement = 0;
         let mut current_best_fitness = self.global_best_fitness;
 
         // Initial evaluation
         for particle in &mut self.particles {
-            let fitness = self.calculate_fitness(&particle.position);
+            let fitness = calculate_fitness(&particle.position);
             particle.update_personal_best(fitness);
             if fitness < self.global_best_fitness {
                 self.global_best_fitness = fitness;
@@ -254,16 +251,20 @@ impl PSO {
 
             for particle in &mut self.particles {
                 // Update velocity and position
-                particle.velocity = self.update_velocity(particle);
-                particle.position = self.apply_velocity(&particle.position, &particle.velocity);
+                particle.update_velocity(
+                    self.cognitive_weight,
+                    self.social_weight,
+                    &self.global_best_position,
+                );
+                particle.apply_velocity();
 
                 // Apply local search periodically
                 if iteration % self.local_search_freq == 0 {
-                    particle.position = self.local_search(&particle.position, 20);
+                    particle.position = local_search(&particle.position, 20);
                 }
 
                 // Evaluate new position
-                let fitness = self.calculate_fitness(&particle.position);
+                let fitness = calculate_fitness(&particle.position);
 
                 // Update personal best
                 particle.update_personal_best(fitness);
@@ -299,8 +300,8 @@ impl PSO {
         }
 
         // Final local search on global best
-        self.global_best_position = self.local_search(&self.global_best_position, 100);
-        self.global_best_fitness = self.calculate_fitness(&self.global_best_position);
+        self.global_best_position = local_search(&self.global_best_position, 100);
+        self.global_best_fitness = calculate_fitness(&self.global_best_position);
 
         println!(
             "Total time elapsed: {:.2}s",
@@ -309,8 +310,4 @@ impl PSO {
 
         Ok((self.global_best_position.clone(), self.global_best_fitness))
     }
-}
-
-fn euclidean_distance(a: &(f64, f64), b: &(f64, f64)) -> f64 {
-    ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()
 }

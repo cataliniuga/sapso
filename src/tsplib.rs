@@ -1,9 +1,16 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader},
+    sync::LazyLock,
 };
 
 use anyhow::Result;
+
+fn euclidean_distance(a: &(f64, f64), b: &(f64, f64)) -> u64 {
+    ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt() as u64
+}
+
+pub static DISTANCE_MATRIX: LazyLock<Vec<Vec<u64>>> = LazyLock::new(|| Vec::new());
 
 pub struct TspLib {
     pub name: String,
