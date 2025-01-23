@@ -105,6 +105,7 @@ impl PSO {
         }
     }
 
+    /// Calculate total distance of the route
     fn calculate_fitness(&self, route: &[usize]) -> f64 {
         let mut total_distance = 0.0;
         for i in 0..route.len() {
@@ -117,6 +118,7 @@ impl PSO {
         total_distance
     }
 
+    /// Perform 2-opt swap operation
     fn two_opt_swap(&self, route: &[usize], i: usize, j: usize) -> Vec<usize> {
         let mut new_route = route[..i].to_vec();
         new_route.extend(route[i..=j].iter().rev());
@@ -124,6 +126,7 @@ impl PSO {
         new_route
     }
 
+    /// Apply randomized 2-opt local search to improve route
     fn local_search(&self, route: &[usize], max_iterations: usize) -> Vec<usize> {
         let mut rng = thread_rng();
         let mut best_route = route.to_vec();
@@ -131,6 +134,7 @@ impl PSO {
         let n = route.len();
 
         for _ in 0..max_iterations {
+            // Randomly sample positions to swap
             let i = rng.gen_range(1..n - 2);
             let j = rng.gen_range(i + 1..n - 1);
 
@@ -146,19 +150,24 @@ impl PSO {
         best_route
     }
 
+    /// Order crossover (OX) operator
     fn crossover(&self, route1: &[usize], route2: &[usize]) -> Vec<usize> {
         let mut rng = thread_rng();
         let size = route1.len();
         let start = rng.gen_range(0..size);
         let end = rng.gen_range(start..size);
 
+        // Get segment from first parent
         let segment = route1[start..=end].to_vec();
+
+        // Create remaining elements in order of second parent
         let remaining = route2
             .iter()
             .filter(|x| !segment.contains(x))
             .copied()
             .collect::<Vec<usize>>();
 
+        // Construct offspring
         let mut offspring = Vec::with_capacity(size);
         offspring.extend(&remaining[..start]);
         offspring.extend(&segment);
@@ -167,6 +176,7 @@ impl PSO {
         offspring
     }
 
+    /// Apply mutation (swap two random cities)
     fn mutate(&self, route: &mut Vec<usize>, mutation_rate: f64) {
         let mut rng = thread_rng();
         if rng.gen::<f64>() < mutation_rate {
@@ -176,10 +186,12 @@ impl PSO {
         }
     }
 
+    /// Update particle's velocity using both PSO and genetic operators
     fn update_velocity(&self, particle: &Particle) -> Vec<(usize, usize)> {
         let mut rng = thread_rng();
         let mut new_route = particle.position.clone();
 
+        // PSO movement
         if rng.gen::<f64>() < self.cognitive_weight {
             new_route = self.crossover(&new_route, &particle.best_position);
         }
@@ -188,10 +200,14 @@ impl PSO {
             new_route = self.crossover(&new_route, &self.global_best_position);
         }
 
+        // Mutation
         self.mutate(&mut new_route, 0.1);
+
+        // Convert differences into swap sequence
         self.get_swap_sequence(&particle.position, &new_route)
     }
 
+    /// Generate sequence of swaps to transform from_route into to_route
     fn get_swap_sequence(&self, from_route: &[usize], to_route: &[usize]) -> Vec<(usize, usize)> {
         let mut from_route = from_route.to_vec();
         let mut swaps = Vec::new();
@@ -208,6 +224,7 @@ impl PSO {
         swaps
     }
 
+    /// Apply sequence of swaps to the route
     fn apply_velocity(&self, route: &[usize], velocity: &[(usize, usize)]) -> Vec<usize> {
         let mut new_route = route.to_vec();
         for &(i, j) in velocity {
@@ -216,6 +233,7 @@ impl PSO {
         new_route
     }
 
+    /// Run the PSO algorithm
     pub fn optimize(&mut self) -> Result<(Vec<usize>, f64)> {
         let start_time = Instant::now();
         let mut iterations_without_improvement = 0;
@@ -246,6 +264,8 @@ impl PSO {
 
                 // Evaluate new position
                 let fitness = self.calculate_fitness(&particle.position);
+
+                // Update personal best
                 particle.update_personal_best(fitness);
 
                 // Update global best
@@ -255,7 +275,7 @@ impl PSO {
                 }
             }
 
-            // Check improvement
+            // Check improvement for this iteration
             if self.global_best_fitness < current_best_fitness {
                 current_best_fitness = self.global_best_fitness;
                 iterations_without_improvement = 0;
