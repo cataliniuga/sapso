@@ -11,7 +11,7 @@ struct Chromosome {
 }
 
 impl Chromosome {
-    fn new(route: Option<Vec<usize>>, distance_matrix: &Vec<Vec<u64>>) -> Self {
+    fn new(route: Option<Vec<usize>>, distance_matrix: &[Vec<u64>]) -> Self {
         let route = match route {
             Some(r) => r,
             None => initialize_nearest_neighbor(distance_matrix),
@@ -21,7 +21,7 @@ impl Chromosome {
         Chromosome { route, fitness }
     }
 
-    fn crossover(&self, other: &Chromosome, distance_matrix: &Vec<Vec<u64>>) -> Chromosome {
+    fn crossover(&self, other: &Chromosome, distance_matrix: &[Vec<u64>]) -> Chromosome {
         let ln = self.route.len();
         let mut rng = thread_rng();
         let (left, right) = {
@@ -68,7 +68,7 @@ impl Chromosome {
         Chromosome::new(Some(final_route), distance_matrix)
     }
 
-    fn mutate(&mut self, mutation_probability: f64, distance_matrix: &Vec<Vec<u64>>) {
+    fn mutate(&mut self, mutation_probability: f64, distance_matrix: &[Vec<u64>]) {
         let mut rng = thread_rng();
 
         if rng.gen::<f64>() < mutation_probability {
@@ -93,7 +93,7 @@ impl Chromosome {
     }
 }
 
-fn initialize_nearest_neighbor(distance_matrix: &Vec<Vec<u64>>) -> Vec<usize> {
+fn initialize_nearest_neighbor(distance_matrix: &[Vec<u64>]) -> Vec<usize> {
     let mut rng = thread_rng();
     let mut current_city = rng.gen_range(0..distance_matrix.len());
     let mut unvisited = (0..distance_matrix.len())
@@ -118,7 +118,7 @@ fn initialize_nearest_neighbor(distance_matrix: &Vec<Vec<u64>>) -> Vec<usize> {
     route
 }
 
-fn calculate_fitness(route: &Vec<usize>, distance_matrix: &Vec<Vec<u64>>) -> u64 {
+fn calculate_fitness(route: &[usize], distance_matrix: &[Vec<u64>]) -> u64 {
     route
         .iter()
         .zip(route.iter().skip(1))
