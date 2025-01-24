@@ -125,7 +125,7 @@ fn plot_alg_best_route(route: Route, title: &str, color: &plotters::style::RGBCo
 }
 
 fn chart_history(history: Vec<Route>, title: &str) -> Result<()> {
-    let file_name = format!("./results/{}_history.png", title);
+    let file_name = format!("./results/{}_history.png", title.to_lowercase().replace(" ", "_"));
     let root = BitMapBackend::new(&file_name, FIG_SIZE).into_drawing_area();
     root.fill(&WHITE)?;
 
