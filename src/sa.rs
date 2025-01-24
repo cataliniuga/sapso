@@ -77,12 +77,12 @@ impl HeuristicAlgorithm for SimulatedAnnealing {
         self.run_time = start_time.elapsed().as_millis() as u64;
     }
 
-    fn get_best_route(&self) -> Route {
-        self.best_route.clone()
-    }
-
     fn get_history(&self) -> Vec<Route> {
         self.history.clone()
+    }
+
+    fn get_best_route(&self) -> Route {
+        self.best_route.clone()
     }
 
     fn get_run_time(&self) -> u64 {

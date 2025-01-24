@@ -229,11 +229,11 @@ impl HeuristicAlgorithm for GeneticAlgorithm {
         self.run_time = start_time.elapsed().as_millis() as u64;
     }
 
-    fn get_history(&self) -> Vec<crate::tsplib::Route> {
+    fn get_history(&self) -> Vec<Route> {
         self.history.clone()
     }
 
-    fn get_best_route(&self) -> crate::tsplib::Route {
+    fn get_best_route(&self) -> Route {
         self.best_route.clone()
     }
 

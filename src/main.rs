@@ -32,13 +32,21 @@ fn main() -> Result<()> {
     println!("SA run time: {} ms", sa_run_time);
     plot::plot_algo_result(&sa, "SA", &plotters::style::RED)?;
 
-    let mut ga = ga::GeneticAlgorithm::new(&tsp, 1000, 5000);
+    let mut ga = ga::GeneticAlgorithm::new(&tsp, 400, 2000);
     ga.solve(&tsp);
     let ga_best_route = ga.get_best_route();
     let ga_run_time = ga.get_run_time();
     println!("GA best route: {:?}", ga_best_route.distance);
     println!("GA run time: {} ms", ga_run_time);
     plot::plot_algo_result(&ga, "GA", &plotters::style::GREEN)?;
+
+    let mut pso = pso::ParticleSwarmOptimization::new(&tsp, 250, 2000, 1.5, 1.5, 0.8, 10);
+    pso.solve(&tsp);
+    let pso_best_route = pso.get_best_route();
+    let pso_run_time = pso.get_run_time();
+    println!("PSO best route: {:?}", pso_best_route.distance);
+    println!("PSO run time: {} ms", pso_run_time);
+    plot::plot_algo_result(&pso, "PSO", &plotters::style::YELLOW)?;
 
     Ok(())
 }
