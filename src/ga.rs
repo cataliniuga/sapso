@@ -1,8 +1,6 @@
-use std::{collections::HashSet, time::Instant};
-
-use rand::{thread_rng, Rng};
-
 use crate::tsplib::{City, HeuristicAlgorithm, Route, TspLib};
+use rand::{seq::SliceRandom, thread_rng, Rng};
+use std::{collections::HashSet, time::Instant};
 
 #[derive(Clone)]
 struct Chromosome {
@@ -12,13 +10,49 @@ struct Chromosome {
 
 impl Chromosome {
     fn new(route: Option<Vec<usize>>, distance_matrix: &[Vec<u64>]) -> Self {
-        let route = match route {
-            Some(r) => r,
-            None => initialize_nearest_neighbor(distance_matrix),
-        };
-        let distance = calculate_distance(&route, distance_matrix);
-
+        let route = route.unwrap_or_else(|| Self::random_route(distance_matrix.len()));
+        let distance = Self::calculate_distance(&route, distance_matrix);
         Chromosome { route, distance }
+    }
+
+    fn random_route(size: usize) -> Vec<usize> {
+        let mut route: Vec<usize> = (0..size).collect();
+        let mut rng = thread_rng();
+        route.shuffle(&mut rng);
+        route
+    }
+
+    fn calculate_distance(route: &[usize], distance_matrix: &[Vec<u64>]) -> u64 {
+        let mut total = distance_matrix[route[route.len() - 1]][route[0]];
+        for i in 1..route.len() {
+            total += distance_matrix[route[i - 1]][route[i]];
+        }
+        total
+    }
+
+    fn nearest_neighbor_route(distance_matrix: &[Vec<u64>]) -> Vec<usize> {
+        let mut rng = thread_rng();
+        let mut current_city = rng.gen_range(0..distance_matrix.len());
+        let mut unvisited = (0..distance_matrix.len())
+            .filter(|&x| x != current_city)
+            .collect::<Vec<usize>>();
+        let mut route = vec![current_city];
+
+        while !unvisited.is_empty() {
+            let next_city = unvisited
+                .iter()
+                .min_by(|&&a, &&b| {
+                    let dist_a = distance_matrix[current_city][a];
+                    let dist_b = distance_matrix[current_city][b];
+                    dist_a.cmp(&dist_b)
+                })
+                .unwrap();
+            let next_index = unvisited.iter().position(|&x| x == *next_city).unwrap();
+            current_city = unvisited.remove(next_index);
+            route.push(current_city);
+        }
+
+        route
     }
 
     fn crossover(&self, other: &Chromosome, distance_matrix: &[Vec<u64>]) -> Chromosome {
@@ -64,91 +98,47 @@ impl Chromosome {
         }
 
         let final_route = offspring_route.into_iter().map(|x| x.unwrap()).collect();
-
         Chromosome::new(Some(final_route), distance_matrix)
+    }
+
+    fn apply_2opt(&mut self, distance_matrix: &[Vec<u64>]) -> bool {
+        let mut improved = false;
+        let n = self.route.len();
+
+        for i in 0..n - 2 {
+            for j in i + 2..n {
+                let current_distance = distance_matrix[self.route[i]][self.route[i + 1]]
+                    + distance_matrix[self.route[j]][self.route[(j + 1) % n]];
+                let new_distance = distance_matrix[self.route[i]][self.route[j]]
+                    + distance_matrix[self.route[i + 1]][self.route[(j + 1) % n]];
+
+                if new_distance < current_distance {
+                    self.route[i + 1..=j].reverse();
+                    self.distance = Self::calculate_distance(&self.route, distance_matrix);
+                    improved = true;
+                }
+            }
+        }
+        improved
     }
 
     fn mutate(&mut self, mutation_probability: f64, distance_matrix: &[Vec<u64>]) {
         let mut rng = thread_rng();
 
+        // Apply 2-opt with probability
+        if rng.gen::<f64>() < mutation_probability {
+            self.apply_2opt(distance_matrix);
+        }
+
+        // Apply random swap with probability
         if rng.gen::<f64>() < mutation_probability {
             let len = self.route.len();
             let i = rng.gen_range(0..len);
-            let window = (len as f64 * 0.1) as usize;
-            let j = (i + rng.gen_range(2..window)) % len;
-
-            // Get start and end indices in correct order
-            let (start, end) = if i < j { (i, j) } else { (j, i) };
-
-            // 2-opt style swap
-            self.route[start..=end].reverse();
-
-            let new_distance = calculate_distance(&self.route, distance_matrix);
-            if new_distance > self.distance && rng.gen::<f64>() > 0.1 {
-                self.route[start..=end].reverse();
-            } else {
-                self.distance = new_distance;
-            }
+            let j = rng.gen_range(0..len);
+            self.route.swap(i, j);
+            self.distance = Self::calculate_distance(&self.route, distance_matrix);
         }
     }
-}
-
-fn initialize_nearest_neighbor(distance_matrix: &[Vec<u64>]) -> Vec<usize> {
-    let mut rng = thread_rng();
-    let mut current_city = rng.gen_range(0..distance_matrix.len());
-    let mut unvisited = (0..distance_matrix.len())
-        .filter(|&x| x != current_city)
-        .collect::<Vec<usize>>();
-    let mut route = vec![current_city];
-
-    while !unvisited.is_empty() {
-        let next_city = unvisited
-            .iter()
-            .min_by(|&&a, &&b| {
-                let dist_a = distance_matrix[current_city][a];
-                let dist_b = distance_matrix[current_city][b];
-                dist_a.cmp(&dist_b)
-            })
-            .unwrap();
-        let next_index = unvisited.iter().position(|&x| x == *next_city).unwrap();
-        current_city = unvisited.remove(next_index);
-        route.push(current_city);
-    }
-
-    route
-}
-
-fn calculate_distance(route: &[usize], distance_matrix: &[Vec<u64>]) -> u64 {
-    route
-        .iter()
-        .zip(route.iter().skip(1))
-        .map(|(a, b)| distance_matrix[*a][*b])
-        .sum::<u64>()
-        + distance_matrix[route[route.len() - 1]][route[0]]
-}
-
-fn selection(population: &Vec<Chromosome>) -> Chromosome {
-    let total_distance = population
-        .iter()
-        .map(|c| (c.distance as f64).powi(-2))
-        .sum::<f64>();
-    let selection_point = rand::random::<f64>() * total_distance;
-    let mut cumulative_distance = 0.0;
-
-    let mut selected_chromosome = Chromosome {
-        route: Vec::new(),
-        distance: 0,
-    };
-
-    for chromosome in population {
-        cumulative_distance += (chromosome.distance as f64).powi(-1);
-        if cumulative_distance >= selection_point {
-            selected_chromosome = chromosome.clone();
-            break;
-        }
-    }
-
-    selected_chromosome
 }
 
 pub struct GeneticAlgorithm {
@@ -158,74 +148,106 @@ pub struct GeneticAlgorithm {
 
     population_size: usize,
     number_of_generations: usize,
+    mutation_probability: f64,
+    elite_size: usize,
 }
 
 impl GeneticAlgorithm {
-    pub fn new(tsp: &TspLib, population_size: usize, number_of_generations: usize) -> Self {
+    pub fn new(
+        tsp: &TspLib,
+        population_size: usize,
+        number_of_generations: usize,
+        mutation_probability: f64,
+        elite_size: usize,
+    ) -> Self {
         GeneticAlgorithm {
             history: Vec::new(),
             best_route: Route::new(&tsp.cities.clone()),
             run_time: 0,
             population_size,
             number_of_generations,
+            mutation_probability,
+            elite_size,
         }
+    }
+
+    fn selection(&self, population: &[Chromosome]) -> Chromosome {
+        let mut rng = thread_rng();
+        let tournament_size = 5;
+        let mut best = &population[rng.gen_range(0..population.len())];
+
+        for _ in 1..tournament_size {
+            let candidate = &population[rng.gen_range(0..population.len())];
+            if candidate.distance < best.distance {
+                best = candidate;
+            }
+        }
+
+        best.clone()
     }
 }
 
 impl HeuristicAlgorithm for GeneticAlgorithm {
-    fn solve(&mut self, tsp: &crate::tsplib::TspLib) {
+    fn solve(&mut self, tsp: &TspLib) {
         let start_time = Instant::now();
-        let elite_size = 2; // Keep top 2 solutions
 
-        let mut population = (0..self.population_size)
-            .map(|_| Chromosome::new(None, &tsp.distance_matrix))
-            .collect::<Vec<Chromosome>>();
+        // Initialize population with a mix of random and nearest neighbor solutions
+        let mut population = Vec::with_capacity(self.population_size);
+
+        // Add one nearest neighbor solution
+        population.push(Chromosome::new(
+            Some(Chromosome::nearest_neighbor_route(&tsp.distance_matrix)),
+            &tsp.distance_matrix,
+        ));
+
+        // Fill rest with random solutions
+        while population.len() < self.population_size {
+            population.push(Chromosome::new(None, &tsp.distance_matrix));
+        }
+
         for generation in 0..self.number_of_generations {
-            population.sort_by(|a, b| a.distance.cmp(&b.distance));
+            population.sort_by_key(|c| c.distance);
+
             if generation % 100 == 0 {
                 println!(
-                    "Generation: {}, Best route: {}",
+                    "Generation: {}, Best distance: {}",
                     generation, population[0].distance
                 );
             }
 
             // Store elite solutions
-            let elite = population[0..elite_size].to_vec();
+            let elite = population[0..self.elite_size].to_vec();
 
             let mut next_population = Vec::new();
             next_population.extend(elite.clone());
 
+            // Create new population
             while next_population.len() < self.population_size {
-                let parent1 = selection(&population);
-                let parent2 = selection(&population);
-                let mut offspring1 = parent1.crossover(&parent2, &tsp.distance_matrix);
-                let mut offspring2 = parent2.crossover(&parent1, &tsp.distance_matrix);
-                offspring1.mutate(0.01, &tsp.distance_matrix);
-                offspring2.mutate(0.01, &tsp.distance_matrix);
-                next_population.push(offspring1);
-                next_population.push(offspring2);
+                let parent1 = self.selection(&population);
+                let parent2 = self.selection(&population);
+                let mut offspring = parent1.crossover(&parent2, &tsp.distance_matrix);
+                offspring.mutate(self.mutation_probability, &tsp.distance_matrix);
+                next_population.push(offspring);
             }
 
-            // Trim to population size if needed
-            next_population.truncate(self.population_size);
-            self.history.push(Route::new(
+            // Update best solution
+            population = next_population;
+            population.sort_by_key(|c| c.distance);
+
+            let best_route = Route::new(
                 &population[0]
                     .route
                     .iter()
                     .map(|&city| tsp.cities[city])
                     .collect::<Vec<City>>(),
-            ));
-            population = next_population;
+            );
+
+            self.history.push(best_route.clone());
+            if best_route.distance < self.best_route.distance {
+                self.best_route = best_route;
+            }
         }
 
-        let best_chromosome = population.iter().min_by_key(|c| c.distance).unwrap();
-        self.best_route = Route::new(
-            &best_chromosome
-                .route
-                .iter()
-                .map(|&city| tsp.cities[city])
-                .collect::<Vec<City>>(),
-        );
         self.run_time = start_time.elapsed().as_millis() as u64;
     }
 
