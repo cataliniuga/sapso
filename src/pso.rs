@@ -292,27 +292,27 @@ impl PSO {
 
             // Early stopping
             if iterations_without_improvement > 50 {
-                println!("Early stopping at iteration {}", iteration);
+                // println!("Early stopping at iteration {}", iteration);
                 break;
             }
 
-            println!(
-                "Iteration {}/{}, Best distance: {:.2}, Time elapsed: {:.2}s",
-                iteration + 1,
-                self.max_iterations,
-                self.global_best_fitness,
-                iteration_start.elapsed().as_secs_f64()
-            );
+            // println!(
+            //     "Iteration {}/{}, Best distance: {:.2}, Time elapsed: {:.2}s",
+            //     iteration + 1,
+            //     self.max_iterations,
+            //     self.global_best_fitness,
+            //     iteration_start.elapsed().as_secs_f64()
+            // );
         }
 
         // Final local search on global best
         self.global_best_position = local_search(&self.global_best_position, distance_matrix, 100);
         self.global_best_fitness = calculate_fitness(&self.global_best_position, distance_matrix);
 
-        println!(
-            "Total time elapsed: {:.2}s",
-            start_time.elapsed().as_secs_f64()
-        );
+        // println!(
+        //     "Total time elapsed: {:.2}s",
+        //     start_time.elapsed().as_secs_f64()
+        // );
 
         Ok((
             self.global_best_position.clone(),

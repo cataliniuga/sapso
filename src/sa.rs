@@ -3,11 +3,7 @@ use anyhow::Result;
 use rand::prelude::*;
 use std::f64::consts::E;
 
-#[derive(Clone)]
-pub struct City {
-    pub x: f64,
-    pub y: f64,
-}
+type City = (f64, f64);
 
 #[derive(Clone)]
 pub struct Route {
@@ -17,7 +13,7 @@ pub struct Route {
 
 impl Route {
     pub fn new(coords: &[(f64, f64)]) -> Self {
-        let cities: Vec<City> = coords.iter().map(|&(x, y)| City { x, y }).collect();
+        let cities: Vec<City> = coords.iter().map(|&(x, y)| (x, y)).collect();
         let distance = Self::calculate_distance(&cities);
         Route { cities, distance }
     }
@@ -51,13 +47,16 @@ impl Route {
 }
 
 fn euclidian_distance(a: &City, b: &City) -> f64 {
-    ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt()
+    ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()
 }
 
 pub struct SimulatedAnnealing {
     pub temperature: f64,
     pub cooling_rate: f64,
     pub min_temperature: f64,
+
+    pub history: Vec<Route>,
+    pub best_route: Route,
 }
 
 impl SimulatedAnnealing {
@@ -66,10 +65,15 @@ impl SimulatedAnnealing {
             temperature,
             cooling_rate,
             min_temperature,
+            history: Vec::new(),
+            best_route: Route {
+                cities: Vec::new(),
+                distance: f64::MAX,
+            },
         }
     }
 
-    pub fn solve(&mut self, tsp: &TspLib) -> Route {
+    pub fn solve(&mut self, tsp: &TspLib) {
         let mut rng = thread_rng();
         let mut current_route = Route::new(&tsp.node_coords);
         let mut best_route = current_route.clone();
@@ -85,15 +89,17 @@ impl SimulatedAnnealing {
                 }
             }
 
+            self.history.push(current_route.clone());
+
             self.temperature *= 1.0 - self.cooling_rate;
         }
 
-        best_route
+        self.best_route = best_route.clone();
     }
 }
 
-pub fn solve_tsp(tsp: TspLib) -> Result<Route> {
+pub fn solve_tsp(tsp: TspLib) -> Result<SimulatedAnnealing> {
     let mut sa = SimulatedAnnealing::new(100.0, 0.001, 0.01);
-
-    Ok(sa.solve(&tsp))
+    sa.solve(&tsp);
+    Ok(sa)
 }
