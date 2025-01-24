@@ -163,42 +163,6 @@ fn calculate_fitness(route: &[usize], distance_matrix: &[Vec<u64>]) -> u64 {
     total_distance
 }
 
-/// Perform 2-opt swap operation
-fn two_opt_swap(route: &[usize], i: usize, j: usize) -> Vec<usize> {
-    let mut new_route = route[..i].to_vec();
-    new_route.extend(route[i..=j].iter().rev());
-    new_route.extend(&route[j + 1..]);
-    new_route
-}
-
-/// Apply randomized 2-opt local search to improve route
-fn local_search(
-    route: &[usize],
-    distance_matrix: &[Vec<u64>],
-    max_iterations: usize,
-) -> Vec<usize> {
-    let mut rng = thread_rng();
-    let mut best_route = route.to_vec();
-    let mut best_distance = calculate_fitness(&best_route, distance_matrix);
-    let n = route.len();
-
-    for _ in 0..max_iterations {
-        // Randomly sample positions to swap
-        let i = rng.gen_range(1..n - 2);
-        let j = rng.gen_range(i + 1..n - 1);
-
-        let new_route = two_opt_swap(&best_route, i, j);
-        let new_distance = calculate_fitness(&new_route, distance_matrix);
-
-        if new_distance < best_distance {
-            best_route = new_route;
-            best_distance = new_distance;
-        }
-    }
-
-    best_route
-}
-
 pub struct ParticleSwarmOptimization {
     history: Vec<Route>,
     best_route: Route,
@@ -211,7 +175,6 @@ pub struct ParticleSwarmOptimization {
     cognitive_weight: f64,
     social_weight: f64,
     inertia_weight: f64,
-    local_search_freq: usize,
 }
 
 impl ParticleSwarmOptimization {
@@ -222,7 +185,6 @@ impl ParticleSwarmOptimization {
         cognitive_weight: f64,
         social_weight: f64,
         inertia_weight: f64,
-        local_search_freq: usize,
     ) -> Self {
         let mut particles = Vec::with_capacity(num_particles);
         let num_cities = tsp.dimension;
@@ -246,7 +208,6 @@ impl ParticleSwarmOptimization {
             cognitive_weight,
             social_weight,
             inertia_weight,
-            local_search_freq,
         }
     }
 }
@@ -254,7 +215,6 @@ impl ParticleSwarmOptimization {
 impl HeuristicAlgorithm for ParticleSwarmOptimization {
     fn solve(&mut self, tsp: &TspLib) {
         let start_time = Instant::now();
-        let mut iterations_without_improvement = 0;
         let mut current_best_fitness = self.global_best_fitness;
 
         // Initial evaluation
@@ -278,11 +238,6 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
                 );
                 particle.apply_velocity();
 
-                // Apply local search periodically
-                if iteration % self.local_search_freq == 0 {
-                    particle.position = local_search(&particle.position, &tsp.distance_matrix, 20);
-                }
-
                 // Evaluate new position
                 let fitness = calculate_fitness(&particle.position, &tsp.distance_matrix);
 
@@ -299,9 +254,6 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
             // Check improvement for this iteration
             if self.global_best_fitness < current_best_fitness {
                 current_best_fitness = self.global_best_fitness;
-                iterations_without_improvement = 0;
-            } else {
-                iterations_without_improvement += 1;
             }
 
             // Store history
@@ -321,9 +273,6 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
             }
         }
 
-        // Final local search on global best
-        self.global_best_position =
-            local_search(&self.global_best_position, &tsp.distance_matrix, 100);
         self.global_best_fitness =
             calculate_fitness(&self.global_best_position, &tsp.distance_matrix);
 
