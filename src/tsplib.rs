@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Result;
-use rand::seq::SliceRandom;
+use rand::{rngs::ThreadRng, seq::SliceRandom, Rng};
 
 static OPTIMALS_PATH: &str = "instances/optimal_tour_lengths.txt";
 
@@ -47,6 +47,41 @@ impl Route {
             distance += euclidean_distance(&cities[i - 1], &cities[i]);
         }
         distance
+    }
+
+    pub fn swap_random_cities(&self, rng: &mut rand::prelude::ThreadRng) -> Self {
+        let mut new_cities = self.cities.clone();
+        let i = rng.gen_range(0..new_cities.len());
+        let j = rng.gen_range(0..new_cities.len());
+        new_cities.swap(i, j);
+        let distance = Self::calculate_distance(&new_cities);
+        Route {
+            cities: new_cities,
+            distance,
+        }
+    }
+
+    pub fn two_opt_move(&self, i: usize, j: usize) -> Self {
+        let mut new_cities = self.cities.clone();
+
+        let (left, right) = (i.min(j), i.max(j));
+        new_cities[left..=right].reverse();
+
+        let distance = Self::calculate_distance(&new_cities);
+        Route {
+            cities: new_cities,
+            distance,
+        }
+    }
+
+    pub fn random_move(&self, rng: &mut ThreadRng) -> Self {
+        if rng.gen::<f64>() < 0.8 {
+            self.swap_random_cities(rng)
+        } else {
+            let i = rng.gen_range(0..self.cities.len());
+            let j = rng.gen_range(0..self.cities.len());
+            self.two_opt_move(i, j)
+        }
     }
 }
 
