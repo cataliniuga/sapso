@@ -38,7 +38,7 @@ fn main() -> Result<()> {
     let ga = ga::GeneticAlgorithm::new(&tsp, 400, 2000);
     run_algorithm(ga, "Genetic Algorithm", &tsp, &plotters::style::GREEN);
 
-    let pso = pso::ParticleSwarmOptimization::new(&tsp, 250, 2000, 1.5, 1.5, 0.8);
+    let pso = pso::ParticleSwarmOptimization::new(&tsp, 300, 4000, 1.5, 1.5, 0.8);
     run_algorithm(pso, "Particle Swarm Optimization", &tsp, &plotters::style::MAGENTA);
 
     Ok(())
