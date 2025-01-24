@@ -95,10 +95,20 @@ impl Particle {
         &mut self,
         cognitive_weight: f64,
         social_weight: f64,
+        inertia_weight: f64,
         global_best_position: &[usize],
     ) {
         let mut rng = thread_rng();
         let mut new_route = self.position.clone();
+
+        // Apply inertia: retain some previous swaps based on inertia weight
+        let previous_swaps = self.velocity.clone();
+        for swap in previous_swaps {
+            if rng.gen::<f64>() < inertia_weight {
+                let (i, j) = swap;
+                new_route.swap(i, j);
+            }
+        }
 
         // PSO movement
         if rng.gen::<f64>() < cognitive_weight {
@@ -263,6 +273,7 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
                 particle.update_velocity(
                     self.cognitive_weight,
                     self.social_weight,
+                    self.inertia_weight,
                     &self.global_best_position,
                 );
                 particle.apply_velocity();
