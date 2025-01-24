@@ -16,7 +16,21 @@ fn main() -> Result<()> {
     println!("{:?}", tsp);
     plot::plot_tsp_instance(tsp.clone())?;
 
-    let mut aco = aco::AntColonyOptimization::new(&tsp, 1.0, 2.0, 0.5, 50.0, 100, 100);
+    // Tuned ACO parameters:
+    // - Increased iterations for better convergence
+    // - Increased number of ants for better exploration
+    // - Adjusted alpha/beta ratio to favor distance information
+    // - Higher q value for stronger pheromone impact
+    // - Higher local search probability
+    let mut aco = aco::AntColonyOptimization::new(
+        &tsp, 1.0,   // keep alpha
+        3.0,   // increase beta more
+        0.05,  // even slower decay
+        300.0, // increase pheromone impact
+        200,   // more ants
+        250,   // more iterations
+        0.4,   // more local search
+    );
     aco.solve(&tsp);
     let aco_best_route = aco.get_best_route();
     let aco_run_time = aco.get_run_time();
@@ -24,7 +38,20 @@ fn main() -> Result<()> {
     println!("ACO run time: {} ms", aco_run_time);
     plot::plot_algo_result(&aco, "ACO", &plotters::style::BLUE)?;
 
-    let mut sa = sa::SimulatedAnnealing::new(&tsp, 10000.0, 0.001, 0.1);
+    // Tuned SA parameters:
+    // - Higher initial temperature for better exploration
+    // - Lower final temperature for better exploitation
+    // - Slower cooling rate
+    // - More moves per temperature
+    // - Higher 2-opt probability
+    let mut sa = sa::SimulatedAnnealing::new(
+        &tsp,
+        2000.0,                  // even higher initial temp
+        0.0001,                  // lower final temp
+        0.003,                   // even slower cooling
+        Some(tsp.dimension * 8), // double moves again
+        0.9,                     // more 2-opt
+    );
     sa.solve(&tsp);
     let sa_best_route = sa.get_best_route();
     let sa_run_time = sa.get_run_time();
@@ -32,7 +59,17 @@ fn main() -> Result<()> {
     println!("SA run time: {} ms", sa_run_time);
     plot::plot_algo_result(&sa, "SA", &plotters::style::RED)?;
 
-    let mut ga = ga::GeneticAlgorithm::new(&tsp, 400, 2000);
+    // Tuned GA parameters:
+    // - Larger population for better diversity
+    // - Fewer generations since it plateaus early
+    // - Higher mutation rate
+    // - Larger elite size
+    let mut ga = ga::GeneticAlgorithm::new(
+        &tsp, 2000, // population_size - doubled
+        3000, // number_of_generations - reduced
+        0.2,  // mutation_probability - doubled
+        4,    // elite_size - doubled
+    );
     ga.solve(&tsp);
     let ga_best_route = ga.get_best_route();
     let ga_run_time = ga.get_run_time();

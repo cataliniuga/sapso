@@ -49,7 +49,7 @@ impl Route {
         distance
     }
 
-    pub fn swap_random_cities(&self, rng: &mut rand::prelude::ThreadRng) -> Self {
+    fn swap_random_cities(&self, rng: &mut rand::prelude::ThreadRng) -> Self {
         let mut new_cities = self.cities.clone();
         let i = rng.gen_range(0..new_cities.len());
         let j = rng.gen_range(0..new_cities.len());
