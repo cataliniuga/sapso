@@ -208,7 +208,13 @@ impl HeuristicAlgorithm for GeneticAlgorithm {
 
             // Trim to population size if needed
             next_population.truncate(self.population_size);
-            self.history.push(Route::new(&population[0].route.iter().map(|&city| tsp.cities[city]).collect::<Vec<City>>()));
+            self.history.push(Route::new(
+                &population[0]
+                    .route
+                    .iter()
+                    .map(|&city| tsp.cities[city])
+                    .collect::<Vec<City>>(),
+            ));
             population = next_population;
         }
 
