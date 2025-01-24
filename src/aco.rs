@@ -10,13 +10,12 @@ pub struct AntColonyOptimization {
     run_time: u64,
 
     // Parameters
-    pub alpha: f64,              // pheromone importance
-    pub beta: f64,               // distance importance
-    pub decay: f64,              // pheromone evaporation rate
-    pub q: f64,                  // pheromone deposit factor
-    pub ants: usize,             // number of ants
-    pub iterations: usize,       // number of iterations
-    pub with_local_search: bool, // apply 2-opt local search
+    pub alpha: f64,        // pheromone importance
+    pub beta: f64,         // distance importance
+    pub decay: f64,        // pheromone evaporation rate
+    pub q: f64,            // pheromone deposit factor
+    pub ants: usize,       // number of ants
+    pub iterations: usize, // number of iterations
 }
 
 impl AntColonyOptimization {
@@ -29,7 +28,6 @@ impl AntColonyOptimization {
         q: f64,
         ants: usize,
         iterations: usize,
-        with_local_search: bool,
     ) -> Self {
         AntColonyOptimization {
             history: Vec::new(),
@@ -42,7 +40,6 @@ impl AntColonyOptimization {
             q,
             ants,
             iterations,
-            with_local_search,
         }
     }
 
@@ -64,15 +61,6 @@ impl AntColonyOptimization {
         let route_cities: Vec<(f64, f64)> = path.iter().map(|&idx| tsp.cities[idx]).collect();
 
         Route::new(&route_cities)
-    }
-
-    fn construct_solution_with_local_search(&self, pheromone: &[Vec<f64>], tsp: &TspLib) -> Route {
-        let initial_solution = self.construct_solution(pheromone, tsp);
-        if self.with_local_search {
-            initial_solution.apply_2opt()
-        } else {
-            initial_solution
-        }
     }
 
     fn select_next_city(
@@ -145,11 +133,7 @@ impl HeuristicAlgorithm for AntColonyOptimization {
             let mut solutions = Vec::new();
 
             for _ in 0..self.ants {
-                let solution = if self.with_local_search && iteration % 10 == 0 {
-                    self.construct_solution_with_local_search(&pheromone, tsp)
-                } else {
-                    self.construct_solution(&pheromone, tsp)
-                };
+                let solution = self.construct_solution(&pheromone, tsp);
 
                 if solution.distance < self.best_route.distance {
                     self.best_route = solution.clone();

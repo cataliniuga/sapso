@@ -48,40 +48,6 @@ impl Route {
         }
         distance
     }
-
-    pub fn apply_2opt(&self) -> Self {
-        let mut best_distance = self.distance;
-        let mut best_cities = self.cities.clone();
-        let mut improved = true;
-
-        while improved {
-            improved = false;
-
-            for i in 0..self.cities.len() - 2 {
-                for j in i + 2..self.cities.len() {
-                    let mut new_cities = best_cities.clone();
-                    new_cities[i + 1..=j].reverse();
-
-                    let new_distance = Self::calculate_distance(&new_cities);
-
-                    if new_distance < best_distance {
-                        best_distance = new_distance;
-                        best_cities = new_cities;
-                        improved = true;
-                        break;
-                    }
-                }
-                if improved {
-                    break;
-                }
-            }
-        }
-
-        Route {
-            cities: best_cities,
-            distance: best_distance,
-        }
-    }
 }
 
 pub trait HeuristicAlgorithm {
