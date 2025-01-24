@@ -69,7 +69,7 @@ impl HeuristicAlgorithm for SimulatedAnnealing {
                 }
             }
 
-            self.history.push(current_route.clone());
+            self.history.push(self.best_route.clone());
             self.temperature *= 1.0 - self.cooling_rate;
             epoch += 1;
         }
