@@ -7,7 +7,7 @@ use crate::tsplib::{City, HeuristicAlgorithm, Route, TspLib};
 #[derive(Clone)]
 struct Chromosome {
     route: Vec<usize>,
-    fitness: u64,
+    distance: u64,
 }
 
 impl Chromosome {
@@ -16,9 +16,9 @@ impl Chromosome {
             Some(r) => r,
             None => initialize_nearest_neighbor(distance_matrix),
         };
-        let fitness = calculate_fitness(&route, distance_matrix);
+        let distance = calculate_distance(&route, distance_matrix);
 
-        Chromosome { route, fitness }
+        Chromosome { route, distance }
     }
 
     fn crossover(&self, other: &Chromosome, distance_matrix: &[Vec<u64>]) -> Chromosome {
@@ -83,11 +83,11 @@ impl Chromosome {
             // 2-opt style swap
             self.route[start..=end].reverse();
 
-            let new_fitness = calculate_fitness(&self.route, distance_matrix);
-            if new_fitness > self.fitness && rng.gen::<f64>() > 0.1 {
+            let new_distance = calculate_distance(&self.route, distance_matrix);
+            if new_distance > self.distance && rng.gen::<f64>() > 0.1 {
                 self.route[start..=end].reverse();
             } else {
-                self.fitness = new_fitness;
+                self.distance = new_distance;
             }
         }
     }
@@ -118,7 +118,7 @@ fn initialize_nearest_neighbor(distance_matrix: &[Vec<u64>]) -> Vec<usize> {
     route
 }
 
-fn calculate_fitness(route: &[usize], distance_matrix: &[Vec<u64>]) -> u64 {
+fn calculate_distance(route: &[usize], distance_matrix: &[Vec<u64>]) -> u64 {
     route
         .iter()
         .zip(route.iter().skip(1))
@@ -128,21 +128,21 @@ fn calculate_fitness(route: &[usize], distance_matrix: &[Vec<u64>]) -> u64 {
 }
 
 fn selection(population: &Vec<Chromosome>) -> Chromosome {
-    let total_fitness = population
+    let total_distance = population
         .iter()
-        .map(|c| (c.fitness as f64).powi(-2))
+        .map(|c| (c.distance as f64).powi(-2))
         .sum::<f64>();
-    let selection_point = rand::random::<f64>() * total_fitness;
-    let mut cumulative_fitness = 0.0;
+    let selection_point = rand::random::<f64>() * total_distance;
+    let mut cumulative_distance = 0.0;
 
     let mut selected_chromosome = Chromosome {
         route: Vec::new(),
-        fitness: 0,
+        distance: 0,
     };
 
     for chromosome in population {
-        cumulative_fitness += (chromosome.fitness as f64).powi(-1);
-        if cumulative_fitness >= selection_point {
+        cumulative_distance += (chromosome.distance as f64).powi(-1);
+        if cumulative_distance >= selection_point {
             selected_chromosome = chromosome.clone();
             break;
         }
@@ -181,11 +181,11 @@ impl HeuristicAlgorithm for GeneticAlgorithm {
             .map(|_| Chromosome::new(None, &tsp.distance_matrix))
             .collect::<Vec<Chromosome>>();
         for generation in 0..self.number_of_generations {
-            population.sort_by(|a, b| a.fitness.cmp(&b.fitness));
+            population.sort_by(|a, b| a.distance.cmp(&b.distance));
             if generation % 100 == 0 {
                 println!(
                     "Generation: {}, Best route: {}",
-                    generation, population[0].fitness
+                    generation, population[0].distance
                 );
             }
 
@@ -212,7 +212,7 @@ impl HeuristicAlgorithm for GeneticAlgorithm {
             population = next_population;
         }
 
-        let best_chromosome = population.iter().min_by_key(|c| c.fitness).unwrap();
+        let best_chromosome = population.iter().min_by_key(|c| c.distance).unwrap();
         self.best_route = Route::new(
             &best_chromosome
                 .route
