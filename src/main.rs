@@ -1,4 +1,5 @@
 mod aco;
+mod ga;
 mod plot;
 mod pso;
 mod sa;
@@ -15,13 +16,13 @@ fn main() -> Result<()> {
     println!("{:?}", tsp);
     plot::plot_tsp_instance(tsp.clone())?;
 
-    // let mut aco = aco::AntColonyOptimization::new(&tsp, 1.0, 2.0, 0.5, 50.0, 100, 100);
-    // aco.solve(&tsp);
-    // let aco_best_route = aco.get_best_route();
-    // let aco_run_time = aco.get_run_time();
-    // println!("ACO best route: {:?}", aco_best_route.distance);
-    // println!("ACO run time: {} ms", aco_run_time);
-    // plot::plot_algo_result(&aco, "ACO", &plotters::style::BLUE)?;
+    let mut aco = aco::AntColonyOptimization::new(&tsp, 1.0, 2.0, 0.5, 50.0, 100, 100);
+    aco.solve(&tsp);
+    let aco_best_route = aco.get_best_route();
+    let aco_run_time = aco.get_run_time();
+    println!("ACO best route: {:?}", aco_best_route.distance);
+    println!("ACO run time: {} ms", aco_run_time);
+    plot::plot_algo_result(&aco, "ACO", &plotters::style::BLUE)?;
 
     let mut sa = sa::SimulatedAnnealing::new(&tsp, 10000.0, 0.001, 0.1);
     sa.solve(&tsp);
@@ -30,6 +31,14 @@ fn main() -> Result<()> {
     println!("SA best route: {:?}", sa_best_route.distance);
     println!("SA run time: {} ms", sa_run_time);
     plot::plot_algo_result(&sa, "SA", &plotters::style::RED)?;
+
+    let mut ga = ga::GeneticAlgorithm::new(&tsp, 1000, 5000);
+    ga.solve(&tsp);
+    let ga_best_route = ga.get_best_route();
+    let ga_run_time = ga.get_run_time();
+    println!("GA best route: {:?}", ga_best_route.distance);
+    println!("GA run time: {} ms", ga_run_time);
+    plot::plot_algo_result(&ga, "GA", &plotters::style::GREEN)?;
 
     Ok(())
 }
