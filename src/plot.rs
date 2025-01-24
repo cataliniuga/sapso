@@ -1,80 +1,62 @@
 use anyhow::Result;
 use plotters::prelude::*;
 
-use crate::sa::*;
-use crate::tsplib::TspLib;
+use crate::tsplib::{HeuristicAlgorithm, Route};
 
-pub fn plot_sa(tsp: TspLib, sa: SimulatedAnnealing) -> Result<()> {
-    let coord_range = tsp.node_coords.iter().fold(
-        (
-            f64::INFINITY,
-            f64::NEG_INFINITY,
-            f64::INFINITY,
-            f64::NEG_INFINITY,
-        ),
-        |acc, &(x, y)| (acc.0.min(x), acc.1.max(x), acc.2.min(y), acc.3.max(y)),
-    );
+pub fn plot_algo_result(
+    ha: &dyn HeuristicAlgorithm,
+    title: &str,
+    color: &plotters::style::RGBColor,
+) -> Result<()> {
+    plot_alg_best_route(ha.get_best_route(), title, color)?;
+    chart_history(ha.get_history(), title)?;
 
-    // TSP PLOT
-    let tsp_root = BitMapBackend::new("tsp.png", (2500, 1200)).into_drawing_area();
-    tsp_root.fill(&WHITE)?;
+    Ok(())
+}
 
-    let mut chart = ChartBuilder::on(&tsp_root)
-        .caption("TSP Layout", ("sans-serif", 50).into_font())
+fn plot_alg_best_route(route: Route, title: &str, color: &plotters::style::RGBColor) -> Result<()> {
+    let file_name = format!("results/{}.png", title.to_lowercase().replace(" ", "_"));
+    let root = BitMapBackend::new(&file_name, (800, 600)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(title, ("sans-serif", 50).into_font())
         .margin(5)
-        .x_label_area_size(50)
-        .y_label_area_size(50)
-        .build_cartesian_2d(
-            coord_range.0 - 1.0..coord_range.1 + 1.0,
-            coord_range.2 - 1.0..coord_range.3 + 1.0,
-        )?;
+        .x_label_area_size(40)
+        .y_label_area_size(40)
+        .build_cartesian_2d(0..route.cities.len() as u32, 0..route.distance)?;
 
     chart.configure_mesh().draw()?;
 
-    let cities: Vec<(f64, f64)> = tsp.node_coords.iter().map(|&(x, y)| (x, y)).collect();
-    chart.draw_series(PointSeries::of_element(
-        cities.clone(),
-        5,
-        &BLACK,
-        &|c, s, st| EmptyElement::at(c) + Circle::new((0, 0), s, st.filled()),
-    ))?;
-    if let Some(best_route) = tsp.optimal_tour {
-        let best_route: Vec<(f64, f64)> = best_route.iter().map(|&i| cities[i]).collect();
-        chart.draw_series(LineSeries::new(best_route.clone(), &RED))?;
-        // LAST -> FIRST
-        chart.draw_series(LineSeries::new(
-            vec![best_route[best_route.len() - 1], best_route[0]],
-            &RED,
-        ))?;
-    }
-    tsp_root.present()?;
-
-    // SIMMULATED ANNEALING PLOT
-    let sa_root = BitMapBackend::new("sa.png", (2500, 1440)).into_drawing_area();
-    sa_root.fill(&WHITE)?;
-    let mut chart = ChartBuilder::on(&sa_root)
-        .caption("Simulated Annealing", ("sans-serif", 50).into_font())
-        .margin(5)
-        .x_label_area_size(50)
-        .y_label_area_size(50)
-        .build_cartesian_2d(
-            coord_range.0 - 1.0..coord_range.1 + 1.0,
-            coord_range.2 - 1.0..coord_range.3 + 1.0,
-        )?;
-    let best_route: Vec<(f64, f64)> = sa.best_route.cities.iter().map(|&(x, y)| (x, y)).collect();
-    // char axes
-    chart.configure_mesh().draw()?;
-    // draw cities
-    chart.draw_series(PointSeries::of_element(cities, 5, &BLACK, &|c, s, st| {
-        EmptyElement::at(c) + Circle::new((0, 0), s, st.filled())
-    }))?;
-    chart.draw_series(LineSeries::new(best_route.clone(), &BLUE))?;
-    // LAST -> FIRST
     chart.draw_series(LineSeries::new(
-        vec![best_route[best_route.len() - 1], best_route[0]],
-        &BLUE,
+        route.cities.iter().map(|c| (c.0 as u32, c.1 as u64)),
+        color,
     ))?;
-    sa_root.present()?;
+
+    Ok(())
+}
+
+fn chart_history(history: Vec<Route>, title: &str) -> Result<()> {
+    let file_name = format!("results/{}.png", title);
+    let root = BitMapBackend::new(&file_name, (800, 600)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(title, ("sans-serif", 50).into_font())
+        .margin(5)
+        .x_label_area_size(40)
+        .y_label_area_size(40)
+        .build_cartesian_2d(0..history.len() as u32, 0..history[0].distance)?;
+
+    chart.configure_mesh().draw()?;
+
+    chart.draw_series(LineSeries::new(
+        history
+            .iter()
+            .enumerate()
+            .map(|(i, r)| (i as u32, r.distance)),
+        &RED,
+    ))?;
 
     Ok(())
 }

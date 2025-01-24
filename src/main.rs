@@ -1,11 +1,9 @@
 mod plot;
 mod pso;
-mod sa;
-mod stats;
 mod tsplib;
 
 use anyhow::Result;
-use tsplib::read_tsp_file;
+use tsplib::{read_tsp_file, HeuristicAlgorithm};
 
 fn main() -> Result<()> {
     let arg = std::env::args().nth(1).unwrap_or("a280".to_string());
@@ -14,13 +12,10 @@ fn main() -> Result<()> {
 
     println!("{:?}", tsp);
 
-    let sa_result = sa::solve_tsp(tsp.clone())?;
-    println!("SA best distance: {}", sa_result.best_route.distance);
+    // plot::plot_algo_result(&sa, "Simulated Annealing", &plotters::style::GREEN)?;
 
-    let pso_result = pso::solve_tsp(&tsp.distance_matrix)?;
-    println!("PSO best distance: {}", pso_result.1);
-
-    plot::plot_sa(tsp, sa_result)?;
+    // println!("Best route: {:?}", sa.get_best_route().distance);
+    // println!("Run time: {}ms", sa.get_run_time());
 
     Ok(())
 }

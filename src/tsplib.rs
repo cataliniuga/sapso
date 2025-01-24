@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    fmt::format,
     fs::{self, File},
     io::{BufRead, BufReader},
     vec,
@@ -10,8 +9,39 @@ use anyhow::Result;
 
 static OPTIMALS_PATH: &str = "instances/optimal_tour_lengths.txt";
 
-fn euclidean_distance(a: &(f64, f64), b: &(f64, f64)) -> u64 {
+fn euclidean_distance(a: &City, b: &City) -> u64 {
     ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt() as u64
+}
+
+pub type City = (f64, f64);
+
+#[derive(Clone)]
+pub struct Route {
+    pub cities: Vec<City>,
+    pub distance: u64,
+}
+
+impl Route {
+    pub fn new(coords: &[City]) -> Self {
+        let cities: Vec<City> = coords.iter().map(|&(x, y)| (x, y)).collect();
+        let distance = Self::calculate_distance(&cities);
+        Route { cities, distance }
+    }
+
+    pub fn calculate_distance(cities: &[City]) -> u64 {
+        let mut distance = euclidean_distance(&cities[cities.len() - 1], &cities[0]);
+        for i in 1..cities.len() {
+            distance += euclidean_distance(&cities[i - 1], &cities[i]);
+        }
+        distance
+    }
+}
+
+pub trait HeuristicAlgorithm {
+    fn solve(&mut self, tsp: &TspLib);
+    fn get_history(&self) -> Vec<Route>;
+    fn get_best_route(&self) -> Route;
+    fn get_run_time(&self) -> u64;
 }
 
 #[derive(Clone)]
@@ -19,7 +49,7 @@ pub struct TspLib {
     pub name: String,
     pub comment: String,
     pub dimension: usize,
-    pub node_coords: Vec<(f64, f64)>,
+    pub cities: Vec<City>,
     pub distance_matrix: Vec<Vec<u64>>,
     pub optimal_tour: Option<Vec<usize>>,
     pub optimal_tour_length: Option<u64>,
@@ -31,7 +61,7 @@ impl TspLib {
             name: String::new(),
             comment: String::new(),
             dimension: 0,
-            node_coords: Vec::new(),
+            cities: Vec::new(),
             distance_matrix: Vec::new(),
             optimal_tour: None,
             optimal_tour_length: None,
@@ -100,13 +130,13 @@ pub fn read_tsp_file(filename: &str) -> Result<TspLib> {
         let coords = line.split_whitespace().collect::<Vec<&str>>();
         let x = coords[1].parse()?;
         let y = coords[2].parse()?;
-        tsp.node_coords.push((x, y));
+        tsp.cities.push((x, y));
     }
 
     tsp.distance_matrix = vec![vec![0; tsp.dimension]; tsp.dimension];
     for i in 0..tsp.dimension - 1 {
         for j in i + 1..tsp.dimension {
-            let dist = euclidean_distance(&tsp.node_coords[i], &tsp.node_coords[j]);
+            let dist = euclidean_distance(&tsp.cities[i], &tsp.cities[j]);
             tsp.distance_matrix[i][j] = dist;
             tsp.distance_matrix[j][i] = dist;
         }
