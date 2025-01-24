@@ -313,11 +313,6 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
                     .collect::<Vec<City>>(),
             ));
 
-            // Early stopping
-            if iterations_without_improvement > 50 {
-                break;
-            }
-
             if iteration % (self.max_iterations / 10) == 0 {
                 println!(
                     "Iteration {}/{}, Best distance: {}",
