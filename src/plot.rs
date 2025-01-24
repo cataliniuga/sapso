@@ -38,6 +38,15 @@ pub fn plot_sa(tsp: TspLib, sa: SimulatedAnnealing) -> Result<()> {
         &BLACK,
         &|c, s, st| EmptyElement::at(c) + Circle::new((0, 0), s, st.filled()),
     ))?;
+    if let Some(best_route) = tsp.optimal_tour {
+        let best_route: Vec<(f64, f64)> = best_route.iter().map(|&i| cities[i]).collect();
+        chart.draw_series(LineSeries::new(best_route.clone(), &RED))?;
+        // LAST -> FIRST
+        chart.draw_series(LineSeries::new(
+            vec![best_route[best_route.len() - 1], best_route[0]],
+            &RED,
+        ))?;
+    }
     tsp_root.present()?;
 
     // SIMMULATED ANNEALING PLOT

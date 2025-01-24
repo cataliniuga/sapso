@@ -1,6 +1,7 @@
 mod plot;
 mod pso;
 mod sa;
+mod stats;
 mod tsplib;
 
 use anyhow::Result;

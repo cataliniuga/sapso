@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
-    fs::File,
+    fmt::format,
+    fs::{self, File},
     io::{BufRead, BufReader},
     vec,
 };
@@ -20,6 +21,7 @@ pub struct TspLib {
     pub dimension: usize,
     pub node_coords: Vec<(f64, f64)>,
     pub distance_matrix: Vec<Vec<u64>>,
+    pub optimal_tour: Option<Vec<usize>>,
     pub optimal_tour_length: Option<u64>,
 }
 
@@ -31,6 +33,7 @@ impl TspLib {
             dimension: 0,
             node_coords: Vec::new(),
             distance_matrix: Vec::new(),
+            optimal_tour: None,
             optimal_tour_length: None,
         }
     }
@@ -107,6 +110,25 @@ pub fn read_tsp_file(filename: &str) -> Result<TspLib> {
             tsp.distance_matrix[i][j] = dist;
             tsp.distance_matrix[j][i] = dist;
         }
+    }
+
+    if fs::exists(format!("instances/{}.opt.tour", tsp.name))? {
+        let file = File::open(format!("instances/{}.opt.tour", tsp.name))?;
+        let reader = BufReader::new(file);
+        let mut lines = reader.lines();
+        while !line.contains("TOUR_SECTION") {
+            line = lines.next().unwrap()?;
+        }
+        let mut optimal_tour = Vec::new();
+        for _ in 0..tsp.dimension {
+            line = lines.next().unwrap()?;
+            if line.contains("-1") {
+                break;
+            }
+            let node = line.trim().parse::<usize>()?;
+            optimal_tour.push(node - 1);
+        }
+        tsp.optimal_tour = Some(optimal_tour);
     }
 
     let optimal_tour_lengths = get_optimal_tour_length()?;
