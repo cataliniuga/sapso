@@ -6,11 +6,16 @@ use std::{
 };
 
 use anyhow::Result;
+use rand::seq::SliceRandom;
 
 static OPTIMALS_PATH: &str = "instances/optimal_tour_lengths.txt";
 
 fn euclidean_distance(a: &City, b: &City) -> u64 {
-    ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt() as u64
+    let dx = a.0 - b.0;
+    let dy = a.1 - b.1;
+    let distance = (dx * dx + dy * dy).sqrt();
+
+    distance.round() as u64
 }
 
 pub type City = (f64, f64);
@@ -28,12 +33,54 @@ impl Route {
         Route { cities, distance }
     }
 
+    pub fn new_random(coords: &[City]) -> Self {
+        let mut cities: Vec<City> = coords.iter().map(|&(x, y)| (x, y)).collect();
+        let mut rng = rand::thread_rng();
+        cities.shuffle(&mut rng);
+        let distance = Self::calculate_distance(&cities);
+        Route { cities, distance }
+    }
+
     pub fn calculate_distance(cities: &[City]) -> u64 {
         let mut distance = euclidean_distance(&cities[cities.len() - 1], &cities[0]);
         for i in 1..cities.len() {
             distance += euclidean_distance(&cities[i - 1], &cities[i]);
         }
         distance
+    }
+
+    pub fn apply_2opt(&self) -> Self {
+        let mut best_distance = self.distance;
+        let mut best_cities = self.cities.clone();
+        let mut improved = true;
+
+        while improved {
+            improved = false;
+
+            for i in 0..self.cities.len() - 2 {
+                for j in i + 2..self.cities.len() {
+                    let mut new_cities = best_cities.clone();
+                    new_cities[i + 1..=j].reverse();
+
+                    let new_distance = Self::calculate_distance(&new_cities);
+
+                    if new_distance < best_distance {
+                        best_distance = new_distance;
+                        best_cities = new_cities;
+                        improved = true;
+                        break;
+                    }
+                }
+                if improved {
+                    break;
+                }
+            }
+        }
+
+        Route {
+            cities: best_cities,
+            distance: best_distance,
+        }
     }
 }
 
