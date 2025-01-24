@@ -182,10 +182,10 @@ impl HeuristicAlgorithm for GeneticAlgorithm {
             .collect::<Vec<Chromosome>>();
         for generation in 0..self.number_of_generations {
             population.sort_by(|a, b| a.distance.cmp(&b.distance));
-            if generation % 100 == 0 {
+            if generation % (self.number_of_generations / 10) == 0 {
                 println!(
-                    "Generation: {}, Best route: {}",
-                    generation, population[0].distance
+                    "Generation: {}/{}, Best distance: {}",
+                    generation, self.number_of_generations, population[0].distance
                 );
             }
 

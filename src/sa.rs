@@ -40,9 +40,9 @@ impl HeuristicAlgorithm for SimulatedAnnealing {
         let moves_per_temp = tsp.dimension * 2;
 
         while self.temperature > self.min_temperature {
-            if epoch % 100 == 0 {
+            if epoch % 1150 == 0 {
                 println!(
-                    "Epoch: {}, Temperature: {}, Best Distance: {}",
+                    "Epoch: {}, Temperature: {}, Best distance: {}",
                     epoch, self.temperature, best_distance
                 );
             }

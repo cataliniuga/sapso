@@ -318,12 +318,12 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
                 break;
             }
 
-            println!(
-                "Iteration {}/{}, Best distance: {:.2}",
-                iteration + 1,
-                self.max_iterations,
-                self.global_best_fitness
-            );
+            if iteration % (self.max_iterations / 10) == 0 {
+                println!(
+                    "Iteration {}/{}, Best distance: {}",
+                    iteration, self.max_iterations, self.global_best_fitness
+                );
+            }
         }
 
         // Final local search on global best

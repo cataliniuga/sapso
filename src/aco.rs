@@ -146,10 +146,10 @@ impl HeuristicAlgorithm for AntColonyOptimization {
 
             self.history.push(self.best_route.clone());
 
-            if iteration % 10 == 0 {
+            if iteration % (self.iterations / 10) == 0 {
                 println!(
-                    "Iteration: {}, Best route: {}",
-                    iteration, self.best_route.distance
+                    "Iteration: {}/{}, Best distance: {}",
+                    iteration, self.iterations, self.best_route.distance
                 );
             }
         }
