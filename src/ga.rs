@@ -77,10 +77,8 @@ impl Chromosome {
             let window = (len as f64 * 0.1) as usize;
             let j = (i + rng.gen_range(2..window)) % len;
 
-            // Get start and end indices in correct order
             let (start, end) = if i < j { (i, j) } else { (j, i) };
 
-            // 2-opt style swap
             self.route[start..=end].reverse();
 
             let new_distance = calculate_distance(&self.route, distance_matrix);
@@ -162,7 +160,12 @@ pub struct GeneticAlgorithm {
 }
 
 impl GeneticAlgorithm {
-    pub fn new(tsp: &TspLib, population_size: usize, number_of_generations: usize, mutation_rate: f64) -> Self {
+    pub fn new(
+        tsp: &TspLib,
+        population_size: usize,
+        number_of_generations: usize,
+        mutation_rate: f64,
+    ) -> Self {
         GeneticAlgorithm {
             history: Vec::new(),
             best_route: Route::new(&tsp.cities.clone()),
@@ -177,7 +180,7 @@ impl GeneticAlgorithm {
 impl HeuristicAlgorithm for GeneticAlgorithm {
     fn solve(&mut self, tsp: &crate::tsplib::TspLib) {
         let start_time = Instant::now();
-        let elite_size = 2; // Keep top 2 solutions
+        let elite_size = 2;
 
         let mut population = (0..self.population_size)
             .map(|_| Chromosome::new(None, &tsp.distance_matrix))
@@ -191,7 +194,6 @@ impl HeuristicAlgorithm for GeneticAlgorithm {
                 );
             }
 
-            // Store elite solutions
             let elite = population[0..elite_size].to_vec();
 
             let mut next_population = Vec::new();
@@ -208,7 +210,6 @@ impl HeuristicAlgorithm for GeneticAlgorithm {
                 next_population.push(offspring2);
             }
 
-            // Trim to population size if needed
             next_population.truncate(self.population_size);
             self.history.push(Route::new(
                 &population[0]

@@ -48,7 +48,6 @@ pub fn plot_tsp_instance(tsp: TspLib) -> Result<()> {
     if let Some(best_route) = tsp.optimal_tour {
         let best_route: Vec<(f64, f64)> = best_route.iter().map(|&i| tsp.cities[i]).collect();
         chart.draw_series(LineSeries::new(best_route.clone(), &RED))?;
-        // LAST -> FIRST
         chart.draw_series(LineSeries::new(
             vec![best_route[best_route.len() - 1], best_route[0]],
             &RED,
@@ -125,7 +124,10 @@ fn plot_alg_best_route(route: Route, title: &str, color: &plotters::style::RGBCo
 }
 
 fn chart_history(history: Vec<Route>, title: &str) -> Result<()> {
-    let file_name = format!("./results/{}_history.png", title.to_lowercase().replace(" ", "_"));
+    let file_name = format!(
+        "./results/{}_history.png",
+        title.to_lowercase().replace(" ", "_")
+    );
     let root = BitMapBackend::new(&file_name, FIG_SIZE).into_drawing_area();
     root.fill(&WHITE)?;
 

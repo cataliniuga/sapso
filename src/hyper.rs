@@ -62,7 +62,6 @@ pub fn optimize_hyperparameters(tsp: &TspLib, num_trials: usize) -> Vec<Optimiza
         let tsp = Arc::clone(&tsp);
         let results = Arc::clone(&results);
 
-        // ACO with wider ranges
         let aco_params = AcoParams {
             alpha: rng.gen_range(1.0..5.0),
             beta: rng.gen_range(1.0..8.0),
@@ -90,7 +89,6 @@ pub fn optimize_hyperparameters(tsp: &TspLib, num_trials: usize) -> Vec<Optimiza
             runtime_ms: aco.get_run_time(),
         };
 
-        // SA with wider ranges
         let sa_params = SaParams {
             initial_temp: rng.gen_range(5000.0..80000.0),
             final_temp: rng.gen_range(0.00001..0.2),
@@ -112,7 +110,6 @@ pub fn optimize_hyperparameters(tsp: &TspLib, num_trials: usize) -> Vec<Optimiza
             runtime_ms: sa.get_run_time(),
         };
 
-        // GA with wider ranges
         let ga_params = GaParams {
             population_size: rng.gen_range(200..3000),
             generations: rng.gen_range(500..7000),

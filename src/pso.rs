@@ -21,7 +21,6 @@ impl Particle {
         }
     }
 
-    /// Initialize particle position using nearest neighbor heuristic
     fn initialize_nearest_neighbor(&mut self, distance_matrix: &[Vec<u64>]) {
         let mut rng = thread_rng();
         let mut current_city = rng.gen_range(0..self.position.len());
@@ -54,24 +53,20 @@ impl Particle {
         }
     }
 
-    /// Order crossover (OX) operator
     fn crossover(&self, route1: &[usize], route2: &[usize]) -> Vec<usize> {
         let mut rng = thread_rng();
         let size = route1.len();
         let start = rng.gen_range(0..size);
         let end = rng.gen_range(start..size);
 
-        // Get segment from first parent
         let segment = route1[start..=end].to_vec();
 
-        // Create remaining elements in order of second parent
         let remaining = route2
             .iter()
             .filter(|x| !segment.contains(x))
             .copied()
             .collect::<Vec<usize>>();
 
-        // Construct offspring
         let mut offspring = Vec::with_capacity(size);
         offspring.extend(&remaining[..start]);
         offspring.extend(&segment);
@@ -80,7 +75,6 @@ impl Particle {
         offspring
     }
 
-    /// Apply mutation (swap two random cities)
     fn mutate(&self, route: &mut [usize], mutation_rate: f64) {
         let mut rng = thread_rng();
         if rng.gen::<f64>() < mutation_rate {
@@ -90,7 +84,6 @@ impl Particle {
         }
     }
 
-    /// Update particle's velocity using both PSO and genetic operators
     fn update_velocity(
         &mut self,
         cognitive_weight: f64,
@@ -101,7 +94,6 @@ impl Particle {
         let mut rng = thread_rng();
         let mut new_route = self.position.clone();
 
-        // Apply inertia: retain some previous swaps based on inertia weight
         let previous_swaps = self.velocity.clone();
         for swap in previous_swaps {
             if rng.gen::<f64>() < inertia_weight {
@@ -110,7 +102,6 @@ impl Particle {
             }
         }
 
-        // PSO movement
         if rng.gen::<f64>() < cognitive_weight {
             new_route = self.crossover(&new_route, &self.best_position);
         }
@@ -119,14 +110,11 @@ impl Particle {
             new_route = self.crossover(&new_route, global_best_position);
         }
 
-        // Mutation
         self.mutate(&mut new_route, 0.1);
 
-        // Convert differences into swap sequence
         self.velocity = self.get_swap_sequence(&new_route)
     }
 
-    /// Generate sequence of swaps to transform from_route into to_route
     fn get_swap_sequence(&self, to_route: &[usize]) -> Vec<(usize, usize)> {
         let mut from_route = self.position.to_vec();
         let mut swaps = Vec::new();
@@ -143,7 +131,6 @@ impl Particle {
         swaps
     }
 
-    /// Apply sequence of swaps to the route
     fn apply_velocity(&mut self) {
         for &(i, j) in self.velocity.iter() {
             self.position.swap(i, j);
@@ -151,7 +138,6 @@ impl Particle {
     }
 }
 
-/// Calculate total distance of the route
 fn calculate_fitness(route: &[usize], distance_matrix: &[Vec<u64>]) -> u64 {
     let mut total_distance = 0;
     for i in 0..route.len() {
@@ -190,7 +176,6 @@ impl ParticleSwarmOptimization {
         let num_cities = tsp.dimension;
         let global_best_position = (0..num_cities).collect();
 
-        // Initialize particles
         for _ in 0..num_particles {
             let mut particle = Particle::new(num_cities);
             particle.initialize_nearest_neighbor(&tsp.distance_matrix);
@@ -217,7 +202,6 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
         let start_time = Instant::now();
         let mut current_best_fitness = self.global_best_fitness;
 
-        // Initial evaluation
         for particle in &mut self.particles {
             let fitness = calculate_fitness(&particle.position, &tsp.distance_matrix);
             particle.update_personal_best(fitness);
