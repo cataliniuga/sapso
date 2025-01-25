@@ -148,7 +148,7 @@ impl HeuristicAlgorithm for AntColonyOptimization {
 
             if iteration % (self.iterations / 10) == 0 {
                 println!(
-                    "Iteration: {}/{}, Best distance: {}",
+                    "ACO Iteration: {}/{}, Best distance: {}",
                     iteration, self.iterations, self.best_route.distance
                 );
             }

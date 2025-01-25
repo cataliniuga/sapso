@@ -6,7 +6,6 @@ pub struct SimulatedAnnealing {
     best_route: Route,
     run_time: u64,
 
-    // Parameters
     pub temperature: f64,
     pub cooling_rate: f64,
     pub min_temperature: f64,
@@ -42,7 +41,7 @@ impl HeuristicAlgorithm for SimulatedAnnealing {
         while self.temperature > self.min_temperature {
             if epoch % 1150 == 0 {
                 println!(
-                    "Epoch: {}, Temperature: {}, Best distance: {}",
+                    "SA Epoch: {}, Temperature: {}, Best distance: {}",
                     epoch, self.temperature, best_distance
                 );
             }

@@ -156,18 +156,20 @@ pub struct GeneticAlgorithm {
     best_route: Route,
     run_time: u64,
 
-    population_size: usize,
-    number_of_generations: usize,
+    pub population_size: usize,
+    pub number_of_generations: usize,
+    pub mutation_rate: f64,
 }
 
 impl GeneticAlgorithm {
-    pub fn new(tsp: &TspLib, population_size: usize, number_of_generations: usize) -> Self {
+    pub fn new(tsp: &TspLib, population_size: usize, number_of_generations: usize, mutation_rate: f64) -> Self {
         GeneticAlgorithm {
             history: Vec::new(),
             best_route: Route::new(&tsp.cities.clone()),
             run_time: 0,
             population_size,
             number_of_generations,
+            mutation_rate,
         }
     }
 }
@@ -184,7 +186,7 @@ impl HeuristicAlgorithm for GeneticAlgorithm {
             population.sort_by(|a, b| a.distance.cmp(&b.distance));
             if generation % (self.number_of_generations / 10) == 0 {
                 println!(
-                    "Generation: {}/{}, Best distance: {}",
+                    "GA Generation: {}/{}, Best distance: {}",
                     generation, self.number_of_generations, population[0].distance
                 );
             }
@@ -200,8 +202,8 @@ impl HeuristicAlgorithm for GeneticAlgorithm {
                 let parent2 = selection(&population);
                 let mut offspring1 = parent1.crossover(&parent2, &tsp.distance_matrix);
                 let mut offspring2 = parent2.crossover(&parent1, &tsp.distance_matrix);
-                offspring1.mutate(0.01, &tsp.distance_matrix);
-                offspring2.mutate(0.01, &tsp.distance_matrix);
+                offspring1.mutate(self.mutation_rate, &tsp.distance_matrix);
+                offspring2.mutate(self.mutation_rate, &tsp.distance_matrix);
                 next_population.push(offspring1);
                 next_population.push(offspring2);
             }

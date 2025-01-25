@@ -229,7 +229,6 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
 
         for iteration in 0..self.max_iterations {
             for particle in &mut self.particles {
-                // Update velocity and position
                 particle.update_velocity(
                     self.cognitive_weight,
                     self.social_weight,
@@ -238,25 +237,20 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
                 );
                 particle.apply_velocity();
 
-                // Evaluate new position
                 let fitness = calculate_fitness(&particle.position, &tsp.distance_matrix);
 
-                // Update personal best
                 particle.update_personal_best(fitness);
 
-                // Update global best
                 if fitness < self.global_best_fitness {
                     self.global_best_fitness = fitness;
                     self.global_best_position = particle.position.clone();
                 }
             }
 
-            // Check improvement for this iteration
             if self.global_best_fitness < current_best_fitness {
                 current_best_fitness = self.global_best_fitness;
             }
 
-            // Store history
             self.history.push(Route::new(
                 &self
                     .global_best_position
@@ -267,7 +261,7 @@ impl HeuristicAlgorithm for ParticleSwarmOptimization {
 
             if iteration % (self.max_iterations / 10) == 0 {
                 println!(
-                    "Iteration {}/{}, Best distance: {}",
+                    "PSO Iteration {}/{}, Best distance: {}",
                     iteration, self.max_iterations, self.global_best_fitness
                 );
             }
